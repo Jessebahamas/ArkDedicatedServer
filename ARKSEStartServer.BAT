@@ -1,0 +1,1 @@
+start ArkAscendedServer.exe ScorchedEarth_WP?listen?QueryPort=27017?SessionName="The Bahamas 5x Scorched Earth" ?MaxPlayers=70?ServerAdminPassword=Sansabahamas32 -clusterid=BahamasCluster -ClusterDirOverride="D:\SteamCMD\steamcmd\steamapps\common\ArkCluster" -nosteamclient -server -log -mods=929868,1123428,1149214,1249552,1188679,948965,926259
