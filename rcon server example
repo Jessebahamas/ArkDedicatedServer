@@ -10,7 +10,7 @@ WEBHOOK_AVATAR=
 cd C:\ascension\ascension-bot\ascension-bot
 notepad .\config.json
 
-{
+{       ,
     "RCON_SERVERS": {
         "The Island": {
             "RCON_HOST": "192.168.1.70",
