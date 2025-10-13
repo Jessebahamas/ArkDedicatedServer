@@ -1,0 +1,130 @@
+# cogs/server/crosschat.py
+import asyncio
+import logging
+import re
+from collections import deque, defaultdict
+
+import nextcord
+from nextcord.ext import commands
+
+from gamercon_async import GameRCON
+
+# Load your existing settings (RCON_SERVERS, optional RELAY_TAG)
+try:
+    import util.settings as settings
+except Exception:
+    class _S:
+        RCON_SERVERS = {}
+        RELAY_TAG = "[X-Relay]"
+    settings = _S()
+
+RELAY_TAG = getattr(settings, "RELAY_TAG", "[X-Relay]")
+
+def parse_chat_line(line: str):
+    """
+    Extract 'who' and 'msg' from a GetChat line. Tolerant to formats.
+    """
+    s = line.strip()
+    s = re.sub(r"^\[[0-9\.\-: ]+\]\s*", "", s)  # drop timestamps if present
+    m = re.match(r"(?P<who>[^:]{1,64}):\s*(?P<msg>.+)$", s)
+    if m:
+        return m.group("who").strip(), m.group("msg").strip()
+    return None, s
+
+class CrossChat(commands.Cog):
+    """
+    Polls each ASA server for chat and relays new lines to the other servers via RCON.
+    Avoids loops by adding RELAY_TAG and ignoring those on read.
+    """
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.servers = getattr(settings, "RCON_SERVERS", {})
+        self._seen = defaultdict(lambda: deque(maxlen=500))  # per-server rolling window
+        self._running = False
+        self._task: asyncio.Task | None = None
+
+    def cog_unload(self):
+        if self._task:
+            self._task.cancel()
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        if not self._running:
+            self._running = True
+            self._task = asyncio.create_task(self._relay_loop())
+            logging.info("CrossChat relay loop started with %d servers.", len(self.servers))
+
+    async def _relay_loop(self):
+        interval = 1.5  # adjust for load (2.0–3.0 if you have 8 servers)
+        while True:
+            try:
+                await self._poll_and_relay_once()
+            except Exception:
+                logging.exception("CrossChat loop error")
+            await asyncio.sleep(interval)
+
+    async def _poll_and_relay_once(self):
+        new_by_server: dict[str, list[str]] = {}
+        for name, conf in self.servers.items():
+            host, port, pwd = conf["RCON_HOST"], conf["RCON_PORT"], conf["RCON_PASS"]
+            try:
+                async with GameRCON(host, port, pwd, timeout=8) as r:
+                    raw = await r.command("GetChat")
+            except Exception as e:
+                logging.error("Chat poll failed for %s (%s:%s): %s", name, host, port, e)
+                continue
+
+            if not raw:
+                continue
+
+            lines = [ln for ln in raw.splitlines() if ln.strip()]
+            news = []
+            for ln in lines[-100:]:
+                if RELAY_TAG in ln:
+                    continue  # skip our own relayed lines to prevent loops
+                h = hash(ln)
+                if h not in self._seen[name]:
+                    self._seen[name].append(h)
+                    news.append(ln)
+
+            if news:
+                new_by_server[name] = news
+
+        if not new_by_server:
+            return
+
+        # Relay new lines to all other servers
+        for src_name, lines in new_by_server.items():
+            for ln in lines:
+                who, msg = parse_chat_line(ln)
+                if not msg:
+                    continue
+                if who:
+                    text = f"{RELAY_TAG} [{src_name}] {who}: {msg}"
+                else:
+                    text = f"{RELAY_TAG} [{src_name}] {msg}"
+
+                # Quote for ServerChat and trim to avoid overly long lines
+                safe = text.replace('"', "'")[:220]
+                cmd = f'ServerChat "{safe}"'
+
+                for dst_name, conf in self.servers.items():
+                    if dst_name == src_name:
+                        continue
+                    try:
+                        async with GameRCON(conf["RCON_HOST"], conf["RCON_PORT"], conf["RCON_PASS"], timeout=6) as r:
+                            await r.command(cmd)
+                    except Exception as e:
+                        logging.error("Relay to %s failed: %s", dst_name, e)
+
+    @nextcord.slash_command(description="Show cross-server relay status")
+    async def relay_status(self, interaction: nextcord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        names = ", ".join(self.servers.keys()) or "(none)"
+        await interaction.followup.send(
+            f"Relay running: **{self._running}**\nServers: {names}\nTag: `{RELAY_TAG}`",
+            ephemeral=True
+        )
+
+def setup(bot: commands.Bot):
+    bot.add_cog(CrossChat(bot))
