@@ -1,0 +1,60 @@
+BOT_TOKEN=
+BOT_PREFIX=
+BOT_STATUS=
+CHATLOG_CHANNEL=
+WEBHOOK_URL=
+WEBHOOK_AVATAR=
+
+
+
+cd C:\ascension\ascension-bot\ascension-bot
+notepad .\config.json
+
+{
+    "RCON_SERVERS": {
+        "The Island": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32330,
+            "RCON_PASS": "Sansabahamas32"
+        },
+        "Scorched Earth": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32331,
+            "RCON_PASS": "Sansabahamas32"
+        }
+        "Extinction": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32333,
+            "RCON_PASS": "Sansabahamas32"
+        },
+        "Aberration": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32334,
+            "RCON_PASS": "Sansabahamas32"
+        }
+        "Astreos": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32335,
+            "RCON_PASS": "Sansabahamas32"
+        },
+        "Club Ark": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32337,
+            "RCON_PASS": "Sansabahamas32"
+        }
+        "Ragnarok": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32336,
+            "RCON_PASS": "Sansabahamas32"
+        },
+        "The Center": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32332,
+            "RCON_PASS": "Sansabahamas32"
+      "Valguero": {
+            "RCON_HOST": "192.168.1.70",
+            "RCON_PORT": 32338,
+            "RCON_PASS": "Sansabahamas32" 
+        }
+    }
+}
